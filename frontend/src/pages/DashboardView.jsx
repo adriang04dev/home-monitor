@@ -6,6 +6,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -115,6 +116,8 @@ export default function DashboardView() {
         }) || 'Sin fecha',
         dispositivo: getReadingDevice(item),
         potencia_w: Number(item.potencia) || 0,
+        voltaje_v: Number(item.voltaje) || 0,
+        corriente_a: Number(item.corriente) || 0,
       }))
   }, [filteredReadings])
 
@@ -227,6 +230,35 @@ export default function DashboardView() {
                 <Tooltip />
                 <Legend />
                 <Line type="monotone" dataKey="potencia_w" stroke="#177245" name="Potencia (W)" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Voltaje y corriente</h2>
+        {loading ? (
+          <p>Cargando datos...</p>
+        ) : !filteredReadings.length ? (
+          <p>No hay mediciones en este periodo.</p>
+        ) : (
+          <div className="chart-wrap">
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="4 4" />
+                <XAxis dataKey="timestamp" minTickGap={24} />
+                <YAxis yAxisId="voltaje" label={{ value: 'V', angle: -90, position: 'insideLeft' }} />
+                <YAxis
+                  yAxisId="corriente"
+                  orientation="right"
+                  label={{ value: 'A', angle: 90, position: 'insideRight' }}
+                />
+                <Tooltip />
+                <Legend />
+                <Line yAxisId="voltaje" type="monotone" dataKey="voltaje_v" stroke="#2563eb" name="Voltaje (V)" />
+                <Line yAxisId="corriente" type="monotone" dataKey="corriente_a" stroke="#9333ea" name="Corriente (A)" />
+                
               </LineChart>
             </ResponsiveContainer>
           </div>
