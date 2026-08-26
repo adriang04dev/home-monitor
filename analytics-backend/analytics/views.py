@@ -7,7 +7,7 @@ from .models import EnergyReading
 
 @api_view(['GET'])
 def resumen_consumo(_request):
-	datos = EnergyReading.objects.aggregate(
+    datos = EnergyReading.objects.aggregate(
 		promedio=Avg('consumption_kwh'),
 		pico=Max('consumption_kwh'),
 	)

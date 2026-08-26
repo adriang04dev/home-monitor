@@ -13,54 +13,47 @@ import {
 } from 'recharts'
 import { supabase } from '../supabaseClient'
 
-const ANALYTICS_URL = import.meta.env.VITE_ANALYTICS_API_URL || 'http://localhost:8000/api/analytics/resumen/'
-
 export default function DashboardView() {
   const [readings, setReadings] = useState([])
-  const [analytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let active = true
 
     async function loadReadings() {
-      const { data } = await supabase
-        .from('energy_readings')
+      const { data, error: queryError } = await supabase
+        .from('mediciones')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('creado_en', { ascending: false })
         .limit(100)
 
+      if (active && queryError) {
+        setError(queryError.message || 'No se pudieron cargar las mediciones.')
+      }
       if (active && data) {
         setReadings(data)
+        setError('')
       }
       if (active) setLoading(false)
     }
 
-    async function loadAnalytics() {
-      try {
-        const response = await fetch(ANALYTICS_URL)
-        if (!response.ok) return
-        const data = await response.json()
-        if (active) setAnalytics(data)
-      } catch {
-        if (active) setAnalytics(null)
-      }
-    }
-
     loadReadings()
-    loadAnalytics()
 
     const channel = supabase
-      .channel('energy_readings_changes')
+      .channel('mediciones_changes')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'energy_readings' },
+        { event: 'INSERT', schema: 'public', table: 'mediciones' },
         (payload) => {
           setReadings((prev) => [payload.new, ...prev].slice(0, 100))
-          loadAnalytics()
         },
       )
-      .subscribe()
+      .subscribe((subscriptionStatus) => {
+        if (subscriptionStatus === 'CHANNEL_ERROR' && active) {
+          setError('No se pudo activar la actualizacion en tiempo real. Ejecuta el esquema SQL de mediciones.')
+        }
+      })
 
     return () => {
       active = false
@@ -72,9 +65,9 @@ export default function DashboardView() {
     return [...readings]
       .reverse()
       .map((item) => ({
-        timestamp: new Date(item.created_at).toLocaleTimeString(),
-        device_name: item.device_name,
-        consumption_kwh: Number(item.consumption_kwh),
+        timestamp: new Date(item.creado_en).toLocaleTimeString(),
+        dispositivo: item.dispositivo,
+        energia_kwh: Number(item.energia_kwh),
       }))
   }, [readings])
 
@@ -82,12 +75,29 @@ export default function DashboardView() {
     const map = new Map()
 
     for (const reading of readings) {
-      const key = reading.device_name
+      const key = reading.dispositivo
       const current = map.get(key) || 0
-      map.set(key, current + Number(reading.consumption_kwh))
+      map.set(key, current + Number(reading.energia_kwh))
     }
 
     return [...map.entries()].map(([device, total]) => ({ device, total: Number(total.toFixed(2)) }))
+  }, [readings])
+
+  const analytics = useMemo(() => {
+    if (!readings.length) {
+      return { promedio: null, pico: null, alerta_consumo_alto: false }
+    }
+
+    const values = readings.map((item) => Number(item.energia_kwh) || 0)
+    const total = values.reduce((acc, value) => acc + value, 0)
+    const promedio = total / values.length
+    const pico = Math.max(...values)
+
+    return {
+      promedio,
+      pico,
+      alerta_consumo_alto: pico > 5,
+    }
   }, [readings])
 
   async function cerrarSesion() {
@@ -106,22 +116,22 @@ export default function DashboardView() {
         </button>
       </header>
 
-      {analytics && (
-        <section className="card metrics-grid">
-          <article>
-            <h3>Promedio kWh</h3>
-            <p>{analytics.promedio ? Number(analytics.promedio).toFixed(2) : 'N/A'}</p>
-          </article>
-          <article>
-            <h3>Pico kWh</h3>
-            <p>{analytics.pico ? Number(analytics.pico).toFixed(2) : 'N/A'}</p>
-          </article>
-          <article>
-            <h3>Alerta</h3>
-            <p>{analytics.alerta_consumo_alto ? 'Consumo alto' : 'Normal'}</p>
-          </article>
-        </section>
-      )}
+      <section className="card metrics-grid">
+        <article>
+          <h3>Promedio kWh</h3>
+          <p>{analytics.promedio !== null ? Number(analytics.promedio).toFixed(2) : 'N/A'}</p>
+        </article>
+        <article>
+          <h3>Pico kWh</h3>
+          <p>{analytics.pico !== null ? Number(analytics.pico).toFixed(2) : 'N/A'}</p>
+        </article>
+        <article>
+          <h3>Alerta</h3>
+          <p>{analytics.alerta_consumo_alto ? 'Consumo alto' : 'Normal'}</p>
+        </article>
+      </section>
+
+      {error && <p className="status">Error al cargar mediciones: {error}</p>}
 
       <section className="card">
         <h2>Linea temporal de consumo</h2>
@@ -136,7 +146,7 @@ export default function DashboardView() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="consumption_kwh" stroke="#177245" name="kWh" />
+                <Line type="monotone" dataKey="energia_kwh" stroke="#177245" name="kWh" />
               </LineChart>
             </ResponsiveContainer>
           </div>

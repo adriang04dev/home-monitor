@@ -14,16 +14,18 @@ export default function DeviceView({ user, profile }) {
     setBusy(true)
     setStatus('')
 
+    const voltageValue = Number.parseFloat(voltage)
+    const ampsValue = Number.parseFloat(amps)
     const payload = {
-      user_id: user.id,
-      device_name: profile?.device_name || 'dispositivo-sin-nombre',
-      consumption_kwh: Number.parseFloat(kwh),
-      voltage: voltage ? Number.parseFloat(voltage) : null,
-      current_amps: amps ? Number.parseFloat(amps) : null,
-      notes: notes || null,
+      dispositivo: profile?.device_name || 'dispositivo-sin-nombre',
+      corriente_a: ampsValue,
+      voltaje_v: voltageValue,
+      potencia_w: voltageValue * ampsValue,
+      energia_kwh: Number.parseFloat(kwh),
+      estado: notes || 'normal',
     }
 
-    const { error } = await supabase.from('energy_readings').insert(payload)
+    const { error } = await supabase.from('mediciones').insert(payload)
 
     if (error) {
       setStatus(error.message)
@@ -72,6 +74,7 @@ export default function DeviceView({ user, profile }) {
           <label>
             Voltaje
             <input
+              required
               type="number"
               min="0"
               step="0.01"
@@ -83,6 +86,7 @@ export default function DeviceView({ user, profile }) {
           <label>
             Corriente (A)
             <input
+              required
               type="number"
               min="0"
               step="0.01"
