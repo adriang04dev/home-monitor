@@ -133,7 +133,7 @@ button:disabled {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.8rem;
 }
 
@@ -156,6 +156,27 @@ button:disabled {
   font-weight: 700;
 }
 
+.period-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.period-filter h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.period-options {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.period-options button {
+  min-width: 5rem;
+}
+
 .chart-wrap {
   width: 100%;
   min-height: 320px;
@@ -169,5 +190,14 @@ button:disabled {
 
   .metrics-grid {
     grid-template-columns: 1fr;
+  }
+
+  .period-filter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .period-options button {
+    flex: 1;
   }
 }
